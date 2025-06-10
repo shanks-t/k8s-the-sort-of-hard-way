@@ -3,6 +3,10 @@ locals {
   common_setup_script = file("${path.module}/scripts/common-setup.sh")
   jumpbox_setup_script = file("${path.module}/scripts/jumpbox-setup.sh")
   controller_setup_script = file("${path.module}/scripts/controller-setup.sh")
+  
+  # SSH keys configuration - just user key
+  ssh_keys = "${var.ssh_user}:${file(pathexpand(var.public_key_path))}\nroot:${file(pathexpand(var.public_key_path))}"
+  
 }
 
 resource "google_compute_address" "jumpbox_ip" {
@@ -50,7 +54,7 @@ resource "google_compute_instance" "jumpbox" {
   }
 
   metadata = {
-    ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}\nroot:${file(var.public_key_path)}"
+    ssh-keys = local.ssh_keys
   }
 
   metadata_startup_script = "${local.common_setup_script}\n${local.jumpbox_setup_script}"
@@ -81,7 +85,7 @@ resource "google_compute_instance" "controller" {
   }
 
   metadata = {
-    ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}\nroot:${file(var.public_key_path)}"
+    ssh-keys = local.ssh_keys
   }
 
   metadata_startup_script = "${local.common_setup_script}\n${local.controller_setup_script}"
@@ -111,7 +115,7 @@ resource "google_compute_instance" "worker" {
   }
 
   metadata = {
-    ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}\nroot:${file(var.public_key_path)}"
+    ssh-keys = local.ssh_keys
   }
 
   metadata_startup_script = "${local.common_setup_script}\n${templatefile("${path.module}/scripts/worker-setup.sh", { worker_index = count.index })}"

@@ -10,4 +10,4 @@ if [ -z "$JUMPBOX_IP" ]; then
 fi
 
 echo "Connecting to jumpbox at $JUMPBOX_IP with SSH agent forwarding..."
-ssh root@$JUMPBOX_IP
+ssh -A root@$JUMPBOX_IP

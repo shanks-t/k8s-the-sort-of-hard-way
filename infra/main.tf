@@ -1,3 +1,10 @@
+# Startup script templates using built-in templatefile function
+locals {
+  common_setup_script = file("${path.module}/scripts/common-setup.sh")
+  jumpbox_setup_script = file("${path.module}/scripts/jumpbox-setup.sh")
+  controller_setup_script = file("${path.module}/scripts/controller-setup.sh")
+}
+
 resource "google_compute_address" "jumpbox_ip" {
   name         = "jumpbox-ip"
   region       = var.region
@@ -26,7 +33,7 @@ resource "google_compute_address" "worker_ips" {
 
 resource "google_compute_instance" "jumpbox" {
   name         = "jumpbox"
-  machine_type = var.machine_type
+  machine_type = var.worker_machine_type
   zone         = var.zone
 
   boot_disk {
@@ -43,26 +50,10 @@ resource "google_compute_instance" "jumpbox" {
   }
 
   metadata = {
-    ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}"
+    ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}\nroot:${file(var.public_key_path)}"
   }
 
-  metadata_startup_script = <<-EOF
-    #!/bin/bash
-    
-    # Enable root SSH access for Kubernetes The Hard Way tutorial
-    # Find any existing PermitRootLogin setting (commented or not) and replace with 'yes'
-    sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-    # Restart SSH daemon to apply the new configuration
-    systemctl restart sshd
-    
-    # Configure proper hostname for the jumpbox instance
-    # Set the system hostname using hostnamectl
-    hostnamectl set-hostname jumpbox
-    # Update /etc/hosts to map localhost to the new hostname
-    sed -i 's/^127.0.1.1.*/127.0.1.1\tjumpbox/' /etc/hosts
-    # Restart hostname service to ensure changes take effect
-    systemctl restart systemd-hostnamed
-  EOF
+  metadata_startup_script = "${local.common_setup_script}\n${local.jumpbox_setup_script}"
 
   tags = ["ssh", "jumpbox"]
 }
@@ -71,7 +62,7 @@ resource "google_compute_instance" "jumpbox" {
 resource "google_compute_instance" "controller" {
   count        = var.controller_count
   name         = "controller"
-  machine_type = var.machine_type
+  machine_type = var.controller_machine_type
   zone         = var.zone
 
   boot_disk {
@@ -90,26 +81,10 @@ resource "google_compute_instance" "controller" {
   }
 
   metadata = {
-    ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}"
+    ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}\nroot:${file(var.public_key_path)}"
   }
 
-  metadata_startup_script = <<-EOF
-    #!/bin/bash
-    
-    # Enable root SSH access for Kubernetes The Hard Way tutorial
-    # Find any existing PermitRootLogin setting (commented or not) and replace with 'yes'
-    sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-    # Restart SSH daemon to apply the new configuration
-    systemctl restart sshd
-    
-    # Configure proper hostname for the controller instance
-    # Set the system hostname using hostnamectl
-    hostnamectl set-hostname controller
-    # Update /etc/hosts to map localhost to the new hostname
-    sed -i 's/^127.0.1.1.*/127.0.1.1\tcontroller/' /etc/hosts
-    # Restart hostname service to ensure changes take effect
-    systemctl restart systemd-hostnamed
-  EOF
+  metadata_startup_script = "${local.common_setup_script}\n${local.controller_setup_script}"
 
   tags = ["kubernetes", "controller"]
 }
@@ -117,7 +92,7 @@ resource "google_compute_instance" "controller" {
 resource "google_compute_instance" "worker" {
   count        = var.worker_count
   name         = "worker-${count.index}"
-  machine_type = var.machine_type
+  machine_type = var.worker_machine_type
   zone         = var.zone
 
   boot_disk {
@@ -136,26 +111,10 @@ resource "google_compute_instance" "worker" {
   }
 
   metadata = {
-    ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}"
+    ssh-keys = "${var.ssh_user}:${file(var.public_key_path)}\nroot:${file(var.public_key_path)}"
   }
 
-  metadata_startup_script = <<-EOF
-    #!/bin/bash
-    
-    # Enable root SSH access for Kubernetes The Hard Way tutorial
-    # Find any existing PermitRootLogin setting (commented or not) and replace with 'yes'
-    sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-    # Restart SSH daemon to apply the new configuration
-    systemctl restart sshd
-    
-    # Configure proper hostname for worker instance (worker-0, worker-1, etc.)
-    # Set the system hostname using hostnamectl with Terraform count index
-    hostnamectl set-hostname worker-${count.index}
-    # Update /etc/hosts to map localhost to the new hostname
-    sed -i 's/^127.0.1.1.*/127.0.1.1\tworker-${count.index}/' /etc/hosts
-    # Restart hostname service to ensure changes take effect
-    systemctl restart systemd-hostnamed
-  EOF
+  metadata_startup_script = "${local.common_setup_script}\n${templatefile("${path.module}/scripts/worker-setup.sh", { worker_index = count.index })}"
 
   tags = ["kubernetes", "worker"]
 }

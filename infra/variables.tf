@@ -17,8 +17,12 @@ variable "worker_count" {
   default = 2
 }
 
-variable "machine_type" {
+variable "controller_machine_type" {
   default = "e2-medium"
+}
+
+variable "worker_machine_type" {
+  default = "e2-micro"
 }
 
 variable "disk_size_gb" {

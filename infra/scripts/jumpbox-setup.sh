@@ -212,9 +212,16 @@ else
     exit 1
 fi
 
-# Cluster SSH setup completed via separate script
-log "Cluster SSH setup script has been installed at /root/setup-cluster-ssh.sh"
-log "Run this script manually after all nodes are ready to configure SSH access"
+# Save CA/TLS certificate generation script
+log "Installing CA/TLS certificate generation script..."
+if curl -f -H "Metadata-Flavor: Google" \
+   "http://metadata.google.internal/computeMetadata/v1/instance/attributes/ca-tls-script" \
+   -o /root/ca_tls.sh 2>/dev/null; then
+    chmod +x /root/ca_tls.sh
+    log "CA/TLS script installed at /root/ca_tls.sh"
+else
+    log_error "Failed to retrieve CA/TLS script from metadata"
+fi
 
 log "Jumpbox setup completed successfully!"
 log "Setup logs available at: $LOGFILE"

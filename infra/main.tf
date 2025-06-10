@@ -3,6 +3,7 @@ locals {
   common_setup_script = file("${path.module}/scripts/common-setup.sh")
   jumpbox_setup_script = file("${path.module}/scripts/jumpbox-setup.sh")
   controller_setup_script = file("${path.module}/scripts/controller-setup.sh")
+  ca_tls_script = file("${path.module}/scripts/ca_tls.sh")
   
   # SSH keys configuration - just user key
   ssh_keys = "${var.ssh_user}:${file(pathexpand(var.public_key_path))}\nroot:${file(pathexpand(var.public_key_path))}"
@@ -55,6 +56,7 @@ resource "google_compute_instance" "jumpbox" {
 
   metadata = {
     ssh-keys = local.ssh_keys
+    ca-tls-script = local.ca_tls_script
   }
 
   metadata_startup_script = "${local.common_setup_script}\n${local.jumpbox_setup_script}"

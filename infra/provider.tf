@@ -5,6 +5,10 @@ terraform {
       version = "6.8.0"
     }
   }
+  backend "gcs" {
+    bucket = "k8s-tf-state"
+    prefix = "terraform/state"
+  }
 }
 
 provider "google" {

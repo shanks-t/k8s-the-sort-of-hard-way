@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(mkdir:*)",
+      "Bash(terraform init:*)",
+      "Bash(terraform plan:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(terraform apply:*)",
+      "Bash(terraform output:*)",
+      "Bash(ssh:*)"
+    ],
+    "deny": []
+  }
+}

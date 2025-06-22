@@ -19,4 +19,15 @@ systemctl restart systemd-hostnamed
 echo 'net.ipv4.ip_forward = 1' >> /etc/sysctl.conf
 sysctl -p
 
+# Save etcd setup script
+echo "Installing etcd setup script..."
+if curl -f -H "Metadata-Flavor: Google" \
+   "http://metadata.google.internal/computeMetadata/v1/instance/attributes/etcd-setup-script" \
+   -o /root/etcd-setup.sh 2>/dev/null; then
+    chmod +x /root/etcd-setup.sh
+    echo "✓ etcd setup script installed at /root/etcd-setup.sh"
+else
+    echo "ERROR: Failed to retrieve etcd setup script from metadata"
+fi
+
 echo "Controller setup completed"

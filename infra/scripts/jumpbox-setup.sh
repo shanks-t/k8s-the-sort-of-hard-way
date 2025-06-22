@@ -216,12 +216,45 @@ fi
 log "Installing CA/TLS certificate generation script..."
 if curl -f -H "Metadata-Flavor: Google" \
    "http://metadata.google.internal/computeMetadata/v1/instance/attributes/ca-tls-script" \
-   -o /root/ca_tls.sh 2>/dev/null; then
-    chmod +x /root/ca_tls.sh
-    log "CA/TLS script installed at /root/ca_tls.sh"
+   -o /root/ca-tls.sh 2>/dev/null; then
+    chmod +x /root/ca-tls.sh
+    log "CA/TLS script installed at /root/ca-tls.sh"
 else
     log_error "Failed to retrieve CA/TLS script from metadata"
 fi
+
+# Save kubeconfig setup script
+log "Installing kubeconfig setup script..."
+if curl -f -H "Metadata-Flavor: Google" \
+   "http://metadata.google.internal/computeMetadata/v1/instance/attributes/kubeconfig-setup-script" \
+   -o /root/kubeconfig-setup.sh 2>/dev/null; then
+    chmod +x /root/kubeconfig-setup.sh
+    log "Kubeconfig setup script installed at /root/kubeconfig-setup.sh"
+else
+    log_error "Failed to retrieve kubeconfig setup script from metadata"
+fi
+
+# Save encryption setup script
+log "Installing encryption setup script..."
+if curl -f -H "Metadata-Flavor: Google" \
+   "http://metadata.google.internal/computeMetadata/v1/instance/attributes/encryption-setup-script" \
+   -o /root/encryption-setup.sh 2>/dev/null; then
+    chmod +x /root/encryption-setup.sh
+    log "Encryption setup script installed at /root/encryption-setup.sh"
+else
+    log_error "Failed to retrieve encryption setup script from metadata"
+fi
+
+# Validate all scripts were installed
+log "Validating installed scripts..."
+scripts_to_check=("/root/ca-tls.sh" "/root/kubeconfig-setup.sh" "/root/encryption-setup.sh")
+for script in "${scripts_to_check[@]}"; do
+    if [[ -f "$script" && -x "$script" ]]; then
+        log "✓ Script validated: $script"
+    else
+        log_error "✗ Script missing or not executable: $script"
+    fi
+done
 
 log "Jumpbox setup completed successfully!"
 log "Setup logs available at: $LOGFILE"

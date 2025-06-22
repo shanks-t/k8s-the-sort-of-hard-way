@@ -40,33 +40,24 @@ log "Debug Info:"
 log "- User: $(whoami)"
 log "- UID: $(id -u)"
 log "- Working Directory: $(pwd)"
-log "- OS: $(cat /etc/os-release | grep PRETTY_NAME || echo 'Unknown')"
+log "- OS: $(grep PRETTY_NAME /etc/os-release | cut -d'=' -f2- || echo 'Unknown')"
 
 # Wait for SSH keys to be injected by GCP metadata agent
 log "Waiting 30 seconds for GCP metadata agent to inject SSH keys..."
 sleep 30
 
-# Enable root SSH access for Kubernetes The Hard Way tutorial
+# Enable root SSH access
 log "Configuring SSH for root access..."
-if sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config; then
-    log "Root SSH access enabled"
-else
-    log_error "Failed to enable root SSH access"
-    exit 1
-fi
+sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+log "Root SSH access enabled"
 
-# Ensure SSH agent forwarding is allowed
+# Enable SSH agent forwarding
 log "Enabling SSH agent forwarding..."
-if sed -i 's/^#*AllowAgentForwarding.*/AllowAgentForwarding yes/' /etc/ssh/sshd_config; then
-    log "SSH agent forwarding enabled"
-else
-    log_error "Failed to enable SSH agent forwarding"
-    exit 1
-fi
+sed -i 's/^#*AllowAgentForwarding.*/AllowAgentForwarding yes/' /etc/ssh/sshd_config
+log "SSH agent forwarding enabled"
 
-# Configure root SSH access
-log "Configuring root SSH access..."
-# Copy SSH key from the regular user to root (if not already present)
+# Copy SSH key from the regular user to root (if needed)
+log "Configuring root user's authorized_keys..."
 if [[ -f "/home/trey/.ssh/authorized_keys" && ! -f "/root/.ssh/authorized_keys" ]]; then
     mkdir -p /root/.ssh
     cp /home/trey/.ssh/authorized_keys /root/.ssh/authorized_keys
@@ -74,20 +65,24 @@ if [[ -f "/home/trey/.ssh/authorized_keys" && ! -f "/root/.ssh/authorized_keys" 
     chmod 600 /root/.ssh/authorized_keys
     chown -R root:root /root/.ssh
     log "SSH key copied to root user"
-elif [[ -f "/root/.ssh/authorized_keys" ]]; then
-    log "Root SSH key already configured"
 else
-    log_error "SSH key not found for user trey"
+    log "Root SSH key already configured or source key missing"
 fi
 
-# Restart SSH daemon to apply configuration
+# Restart SSH daemon to apply changes
 log "Restarting SSH daemon..."
-if systemctl restart sshd; then
-    log "SSH daemon restarted successfully"
-else
-    log_error "Failed to restart SSH daemon"
-    exit 1
-fi
+systemctl restart sshd
+log "SSHD restarted"
+
+# Add global SSH client config to skip host-key checking for cluster nodes
+log "Adding SSH client config to disable host-key checking for cluster nodes..."
+mkdir -p /etc/ssh/ssh_config.d
+cat << 'EOF' > /etc/ssh/ssh_config.d/10-nokeycheck.conf
+Host 10.240.0.*
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+EOF
+log "SSH client config added at /etc/ssh/ssh_config.d/10-nokeycheck.conf"
 
 # Create hosts file entries for Kubernetes cluster
 log "Adding Kubernetes cluster hosts to /etc/hosts..."

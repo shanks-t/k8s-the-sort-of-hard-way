@@ -10,7 +10,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(terraform apply:*)",
       "Bash(terraform output:*)",
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(terraform validate:*)",
+      "Bash(terraform:*)"
     ],
     "deny": []
   }

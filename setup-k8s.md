@@ -2,10 +2,6 @@
 
 This guide provides step-by-step instructions for the Cloud Code Agent to:
 
-> **Note:** This uses the `ca-tls` script provided in the earlier context.
-
----
-
 ## 0. Pre-flight Checks
 
 Before starting the deployment, verify all prerequisites:
@@ -50,7 +46,7 @@ fi
 echo "✓ All SSH connections successful. Proceeding with setup..."
 ```
 
-**Expected output on success**: 
+**Expected output on success**:
 ```
 Testing jumpbox connectivity...
 jumpbox-connected
@@ -226,22 +222,12 @@ After etcd cluster is running, bootstrap the Kubernetes control plane components
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && scp downloads/controller/kube-apiserver downloads/controller/kube-controller-manager downloads/controller/kube-scheduler downloads/client/kubectl units/kube-apiserver.service units/kube-controller-manager.service units/kube-scheduler.service configs/kube-scheduler.yaml configs/kube-apiserver-to-kubelet.yaml root@server:~/'
 ```
 
-### Copy Bootstrap Script to Server
-
-```bash
-# Copy the bootstrap script to the controller
-JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && scp /Users/treyshanks/workspace/model-serving/k8s-the-hard-way/infra/scripts/bootstrap-controllers.sh root@$JUMPBOX_IP:~/
-JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'scp /root/bootstrap-controllers.sh root@server:~/'
-```
-
 ### Run Bootstrap Controllers Script
 
 ```bash
 # Execute the bootstrap controllers script on server
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@server "/root/bootstrap-controllers.sh"'
 ```
-
-**Note**: If the script fails with "Permission denied" errors for the binaries, fix the execute permissions:
 
 ```bash
 # Fix binary permissions if needed
@@ -264,7 +250,7 @@ JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh r
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@server "kubectl apply -f kube-apiserver-to-kubelet.yaml --kubeconfig admin.kubeconfig --validate=false"'
 ```
 
-**Expected output**: 
+**Expected output**:
 - All three controller services should be "active"
 - Version endpoint should return Kubernetes v1.32.x JSON response
 - RBAC configuration should be applied successfully
@@ -273,7 +259,74 @@ JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh r
 
 ---
 
-## 8. Complete Workflow
+## 8. Bootstrap Kubernetes Workers (Lab 09)
+
+After the control plane is running, bootstrap the worker nodes:
+
+### Copy Node-Specific Configuration Files and Certificates
+
+```bash
+# Copy node-specific configuration files to node-0 (subnet 10.200.0.0/24)
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && sed "s|SUBNET|10.200.0.0/24|g" configs/10-bridge.conf > 10-bridge.conf && sed "s|SUBNET|10.200.0.0/24|g" configs/kubelet-config.yaml > kubelet-config.yaml && scp 10-bridge.conf kubelet-config.yaml node-0.crt node-0.key node-0.kubeconfig kube-proxy.kubeconfig ca.crt root@node-0:~/'
+
+# Rename certificates to match hostname on node-0
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-0 "mv node-0.crt worker-0.crt && mv node-0.key worker-0.key && mv node-0.kubeconfig worker-0.kubeconfig"'
+
+# Copy node-specific configuration files to node-1 (subnet 10.200.1.0/24)  
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && sed "s|SUBNET|10.200.1.0/24|g" configs/10-bridge.conf > 10-bridge.conf && sed "s|SUBNET|10.200.1.0/24|g" configs/kubelet-config.yaml > kubelet-config.yaml && scp 10-bridge.conf kubelet-config.yaml node-1.crt node-1.key node-1.kubeconfig kube-proxy.kubeconfig ca.crt root@node-1:~/'
+
+# Rename certificates to match hostname on node-1
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-1 "mv node-1.crt worker-1.crt && mv node-1.key worker-1.key && mv node-1.kubeconfig worker-1.kubeconfig"'
+```
+
+### Copy Worker Binaries and Unit Files
+
+```bash
+# Copy worker binaries and systemd units to node-0
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && scp downloads/worker/crictl downloads/worker/kube-proxy downloads/worker/kubelet downloads/worker/runc downloads/worker/containerd downloads/worker/containerd-shim-runc-v2 downloads/worker/containerd-stress units/containerd.service units/kubelet.service units/kube-proxy.service configs/kube-proxy-config.yaml configs/containerd-config.toml configs/99-loopback.conf root@node-0:~/'
+
+# Copy CNI plugins to node-0
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && tar -czf cni-plugins.tar.gz -C downloads/cni-plugins . && scp cni-plugins.tar.gz root@node-0:~/'
+
+# Copy worker binaries and systemd units to node-1
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && scp downloads/worker/crictl downloads/worker/kube-proxy downloads/worker/kubelet downloads/worker/runc downloads/worker/containerd downloads/worker/containerd-shim-runc-v2 downloads/worker/containerd-stress units/containerd.service units/kubelet.service units/kube-proxy.service configs/kube-proxy-config.yaml configs/containerd-config.toml configs/99-loopback.conf root@node-1:~/'
+
+# Copy CNI plugins to node-1
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && scp cni-plugins.tar.gz root@node-1:~/'
+```
+
+### Run Bootstrap Workers Script
+
+```bash
+# Execute the bootstrap workers script on node-0
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-0 "/root/bootstrap-workers.sh"'
+
+# Fix missing config files if services fail to start
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-0 "cp /root/kubelet-config.yaml /var/lib/kubelet/ 2>/dev/null || true; cp /root/kube-proxy-config.yaml /var/lib/kube-proxy/ 2>/dev/null || true; systemctl restart kubelet kube-proxy"'
+
+# Execute the bootstrap workers script on node-1
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-1 "/root/bootstrap-workers.sh"'
+
+# Fix missing config files if services fail to start
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-1 "cp /root/kubelet-config.yaml /var/lib/kubelet/ 2>/dev/null || true; cp /root/kube-proxy-config.yaml /var/lib/kube-proxy/ 2>/dev/null || true; systemctl restart kubelet kube-proxy"'
+```
+
+### Verify Worker Nodes
+
+```bash
+# Check worker node status from controller
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@server "kubectl get nodes --kubeconfig admin.kubeconfig"'
+
+# Check worker services on each node
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-0 "systemctl is-active containerd kubelet kube-proxy"'
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-1 "systemctl is-active containerd kubelet kube-proxy"'
+```
+
+**Expected output**: Both worker nodes should show as "Ready" and all services should be "active"
+
+---
+
+## 9. Complete Workflow
 
 * On successful verification, the cluster’s certificate infrastructure is bootstrapped.
 * If any step fails, exit the vm and report the failure results stdout

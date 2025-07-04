@@ -326,7 +326,44 @@ JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh r
 
 ---
 
-## 9. Complete Workflow
+## 9. Configure kubectl for Remote Access (Lab 10)
+
+After worker nodes are operational, configure kubectl for remote cluster management:
+
+### Setup kubectl Configuration
+
+```bash
+# Configure kubectl on jumpbox for remote cluster access
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && kubectl config set-cluster kubernetes-the-hard-way --certificate-authority=ca.crt --embed-certs=true --server=https://server.kubernetes.local:6443'
+
+# Set admin credentials  
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && kubectl config set-credentials admin --client-certificate=admin.crt --client-key=admin.key'
+
+# Create and use context
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && kubectl config set-context kubernetes-the-hard-way --cluster=kubernetes-the-hard-way --user=admin && kubectl config use-context kubernetes-the-hard-way'
+```
+
+### Verify Remote Access
+
+```bash
+# Check Kubernetes version
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl version'
+
+# List cluster nodes  
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl get nodes'
+
+# Check cluster info
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl cluster-info'
+```
+
+**Expected output**: 
+- kubectl version should show both client and server v1.32.3
+- `kubectl get nodes` should list node-0 and node-1 as Ready
+- `kubectl cluster-info` should show control plane URL
+
+---
+
+## 10. Complete Workflow
 
 * On successful verification, the cluster’s certificate infrastructure is bootstrapped.
 * If any step fails, exit the vm and report the failure results stdout

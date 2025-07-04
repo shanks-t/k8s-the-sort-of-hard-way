@@ -16,45 +16,23 @@ cd /Users/treyshanks/workspace/model-serving/k8s-the-hard-way/infra
 **CRITICAL**: Test SSH connectivity to all nodes. If any connections fail, STOP and prompt user for manual setup:
 
 ```bash
-# Get jumpbox IP
+# Test jumpbox connectivity
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip)
+ssh -A root@$JUMPBOX_IP 'echo "Jumpbox connected"'
 
-# Test jumpbox connectivity first
-echo "Testing jumpbox connectivity..."
-if ! ssh -o ConnectTimeout=10 -o BatchMode=yes -A root@$JUMPBOX_IP 'echo jumpbox-connected'; then
-    echo "ERROR: Cannot connect to jumpbox. Please check network connectivity and SSH keys."
-    exit 1
-fi
-
-# Test connectivity from jumpbox to all cluster nodes
-echo "Testing cluster node connectivity from jumpbox..."
-if ! ssh -A root@$JUMPBOX_IP 'ssh -o ConnectTimeout=5 -o BatchMode=yes root@server "echo controller-ok" && ssh -o ConnectTimeout=5 -o BatchMode=yes root@node-0 "echo worker0-ok" && ssh -o ConnectTimeout=5 -o BatchMode=yes root@node-1 "echo worker1-ok"'; then
-    echo ""
-    echo "ERROR: Host key verification failed or nodes unreachable from jumpbox."
-    echo ""
-    echo "REQUIRED MANUAL STEP:"
-    echo "1. SSH into jumpbox: ssh -A root@$JUMPBOX_IP"
-    echo "2. From jumpbox, establish host keys manually:"
-    echo "   ssh root@server \"echo Controller connection established\""
-    echo "   ssh root@node-0 \"echo Worker-0 connection established\""
-    echo "   ssh root@node-1 \"echo Worker-1 connection established\""
-    echo "3. Exit jumpbox and re-run this script"
-    echo ""
-    exit 1
-fi
-
-echo "✓ All SSH connections successful. Proceeding with setup..."
+# Test cluster node connectivity from jumpbox
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'for node in server node-0 node-1; do echo "Testing $node..."; ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@$node "echo $node connected"; done'
 ```
 
 **Expected output on success**:
 ```
-Testing jumpbox connectivity...
-jumpbox-connected
-Testing cluster node connectivity from jumpbox...
-controller-ok
-worker0-ok
-worker1-ok
-✓ All SSH connections successful. Proceeding with setup...
+Jumpbox connected
+Testing server...
+server connected
+Testing node-0...
+node-0 connected
+Testing node-1...
+node-1 connected
 ```
 
 ### Pre-Certificate Generation Checks

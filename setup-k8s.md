@@ -363,7 +363,162 @@ JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubec
 
 ---
 
-## 10. Complete Workflow
+## 10. Pod Network Routes (Lab 11)
+
+Pod network routes are automatically configured via Terraform using Google Cloud routes.
+
+### Pod CIDR Assignments
+- **node-0**: 10.200.0.0/24
+- **node-1**: 10.200.1.0/24
+
+### Verify Pod Network Routes
+
+```bash
+# Check GCP-level routes (should be automatically created by Terraform)
+gcloud compute routes list --filter="network:kubernetes"
+```
+
+**Expected output**: Should show `pod-route-node-0` and `pod-route-node-1` routes
+
+### Test Pod Connectivity (Optional)
+
+If you want to test pod-to-pod communication across nodes, you can deploy test pods:
+
+```bash
+# Deploy test pods on different nodes
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl run test-pod-0 --image=busybox --restart=Never --node-selector="kubernetes.io/hostname=node-0" -- sleep 3600'
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl run test-pod-1 --image=busybox --restart=Never --node-selector="kubernetes.io/hostname=node-1" -- sleep 3600'
+
+# Test cross-node pod communication
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl get pods -o wide'
+```
+
+**Note**: Pod network routes are handled at the Google Cloud Platform level through Terraform configuration in `network.tf`. This eliminates the need for manual IP route configuration on individual VMs.
+
+---
+
+## 11. Smoke Test (Lab 12)
+
+After configuring pod network routes, run comprehensive smoke tests to verify all Kubernetes cluster functionality:
+
+### 11.1 Data Encryption Test
+
+Verify that secrets are encrypted at rest in etcd:
+
+```bash
+# Create a test secret
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl create secret generic kubernetes-the-hard-way --from-literal="mykey=mydata"'
+
+# Verify the secret is encrypted in etcd storage
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@server "etcdctl --endpoints=http://127.0.0.1:2379 get /registry/secrets/default/kubernetes-the-hard-way | hexdump -C"'
+```
+
+**Expected output**: Should show `k8s:enc:aescbc:v1:key1` prefix indicating AES-CBC encryption is working.
+
+### 11.2 Deployments Test
+
+Verify deployment creation and pod scheduling:
+
+```bash
+# Create nginx deployment
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl create deployment nginx --image=nginx:latest'
+
+# Verify pod creation and assignment
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl get pods -l app=nginx -o wide'
+```
+
+**Expected output**: Pod should be running on one of the worker nodes with an IP from the pod CIDR range.
+
+### 11.3 Port Forwarding Test
+
+Verify port forwarding functionality:
+
+```bash
+# Test port forwarding (runs in background and tests connectivity)
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'POD_NAME=$(kubectl get pods -l app=nginx -o jsonpath="{.items[0].metadata.name}") && timeout 10 kubectl port-forward $POD_NAME 8080:80 >/dev/null 2>&1 & sleep 2 && curl -m 3 http://127.0.0.1:8080 | head -n 3; pkill -f "kubectl port-forward"'
+```
+
+**Expected output**: Should return nginx HTML content indicating port forwarding is working.
+
+### 11.4 Logs Test
+
+Verify log retrieval functionality:
+
+```bash
+# Retrieve nginx pod logs
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'POD_NAME=$(kubectl get pods -l app=nginx -o jsonpath="{.items[0].metadata.name}") && kubectl logs $POD_NAME'
+```
+
+**Expected output**: Should show nginx startup logs and any access logs from previous tests.
+
+### 11.5 Exec Test
+
+Verify command execution inside containers:
+
+```bash
+# Execute command in nginx container
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'POD_NAME=$(kubectl get pods -l app=nginx -o jsonpath="{.items[0].metadata.name}") && kubectl exec $POD_NAME -- nginx -v'
+```
+
+**Expected output**: Should return nginx version information.
+
+### 11.6 Services Test
+
+Verify service creation and external accessibility:
+
+```bash
+# Expose nginx deployment as NodePort service
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl expose deployment nginx --port 80 --type NodePort'
+
+# Get service details
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'NODE_PORT=$(kubectl get svc nginx -o jsonpath="{.spec.ports[0].nodePort}") && NODE_NAME=$(kubectl get pods -l app=nginx -o jsonpath="{.items[0].spec.nodeName}") && echo "Node: $NODE_NAME, Port: $NODE_PORT"'
+
+# Test service accessibility
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'NODE_PORT=$(kubectl get svc nginx -o jsonpath="{.spec.ports[0].nodePort}") && NODE_NAME=$(kubectl get pods -l app=nginx -o jsonpath="{.items[0].spec.nodeName}") && curl -m 5 http://${NODE_NAME}:${NODE_PORT} | head -n 3'
+```
+
+**Expected output**: Should return nginx HTML content via the NodePort service, confirming service networking is functional.
+
+**Smoke Test Summary**: All tests passing indicates:
+- ✅ Data encryption at rest is working
+- ✅ Pod scheduling and deployments function correctly  
+- ✅ Network connectivity and port forwarding work
+- ✅ Log retrieval is operational
+- ✅ Container exec functionality works
+- ✅ Service networking and external access function properly
+
+---
+
+## 12. Cleanup (Lab 13)
+
+When you're done with the Kubernetes cluster, you can tear down all infrastructure:
+
+### 12.1 Clean Up Test Resources (Optional)
+
+```bash
+# Remove test resources from cluster before destroying infrastructure
+JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl delete deployment nginx && kubectl delete service nginx && kubectl delete secret kubernetes-the-hard-way && kubectl delete pods test-pod-0 test-pod-1 --ignore-not-found=true'
+```
+
+### 12.2 Destroy Infrastructure
+
+```bash
+# Destroy all Google Cloud resources provisioned by Terraform
+terraform destroy
+
+# Confirm destruction when prompted by typing 'yes'
+```
+
+**Warning**: This will permanently delete all infrastructure including:
+- Compute instances (jumpbox, controller, worker nodes)
+- VPC network and subnets
+- Firewall rules
+- Routes and NAT gateway
+- All data stored on the instances
+
+---
+
+## 13. Complete Workflow
 
 * On successful verification, the cluster’s certificate infrastructure is bootstrapped.
 * If any step fails, exit the vm and report the failure results stdout

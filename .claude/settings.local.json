@@ -12,7 +12,8 @@
       "Bash(terraform output:*)",
       "Bash(ssh:*)",
       "Bash(terraform validate:*)",
-      "Bash(terraform:*)"
+      "Bash(terraform:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

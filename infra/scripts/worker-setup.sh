@@ -9,10 +9,10 @@ WORKER_INDEX="${worker_index}"
 
 echo "Starting worker-$WORKER_INDEX specific setup..."
 
-# Set hostname for worker node
-hostnamectl set-hostname "worker-$WORKER_INDEX"
+# Set hostname for worker node (must match certificate name)
+hostnamectl set-hostname "node-$WORKER_INDEX"
 sed -i '/^127.0.1.1/d' /etc/hosts
-echo "127.0.1.1 worker-$WORKER_INDEX node-$WORKER_INDEX.kubernetes.local" >> /etc/hosts
+echo "127.0.1.1 node-$WORKER_INDEX node-$WORKER_INDEX.kubernetes.local worker-$WORKER_INDEX" >> /etc/hosts
 
 # Restart hostname service
 systemctl restart systemd-hostnamed

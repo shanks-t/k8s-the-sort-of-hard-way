@@ -272,7 +272,7 @@ JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /r
 # Rename certificates to match hostname on node-0
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-0 "mv node-0.crt worker-0.crt && mv node-0.key worker-0.key && mv node-0.kubeconfig worker-0.kubeconfig"'
 
-# Copy node-specific configuration files to node-1 (subnet 10.200.1.0/24)  
+# Copy node-specific configuration files to node-1 (subnet 10.200.1.0/24)
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && sed "s|SUBNET|10.200.1.0/24|g" configs/10-bridge.conf > 10-bridge.conf && sed "s|SUBNET|10.200.1.0/24|g" configs/kubelet-config.yaml > kubelet-config.yaml && scp 10-bridge.conf kubelet-config.yaml node-1.crt node-1.key node-1.kubeconfig kube-proxy.kubeconfig ca.crt root@node-1:~/'
 
 # Rename certificates to match hostname on node-1
@@ -336,7 +336,7 @@ After worker nodes are operational, configure kubectl for remote cluster managem
 # Configure kubectl on jumpbox for remote cluster access
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && kubectl config set-cluster kubernetes-the-hard-way --certificate-authority=ca.crt --embed-certs=true --server=https://server.kubernetes.local:6443'
 
-# Set admin credentials  
+# Set admin credentials
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && kubectl config set-credentials admin --client-certificate=admin.crt --client-key=admin.key'
 
 # Create and use context
@@ -349,14 +349,14 @@ JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /r
 # Check Kubernetes version
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl version'
 
-# List cluster nodes  
+# List cluster nodes
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl get nodes'
 
 # Check cluster info
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl cluster-info'
 ```
 
-**Expected output**: 
+**Expected output**:
 - kubectl version should show both client and server v1.32.3
 - `kubectl get nodes` should list node-0 and node-1 as Ready
 - `kubectl cluster-info` should show control plane URL
@@ -481,7 +481,7 @@ JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'NODE_
 
 **Smoke Test Summary**: All tests passing indicates:
 - ✅ Data encryption at rest is working
-- ✅ Pod scheduling and deployments function correctly  
+- ✅ Pod scheduling and deployments function correctly
 - ✅ Network connectivity and port forwarding work
 - ✅ Log retrieval is operational
 - ✅ Container exec functionality works
@@ -493,14 +493,7 @@ JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'NODE_
 
 When you're done with the Kubernetes cluster, you can tear down all infrastructure:
 
-### 12.1 Clean Up Test Resources (Optional)
-
-```bash
-# Remove test resources from cluster before destroying infrastructure
-JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'kubectl delete deployment nginx && kubectl delete service nginx && kubectl delete secret kubernetes-the-hard-way && kubectl delete pods test-pod-0 test-pod-1 --ignore-not-found=true'
-```
-
-### 12.2 Destroy Infrastructure
+### Destroy Infrastructure
 
 ```bash
 # Destroy all Google Cloud resources provisioned by Terraform

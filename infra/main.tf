@@ -1,13 +1,15 @@
 # Startup script templates using built-in templatefile function
 locals {
-  common_setup_script           = file("${path.module}/scripts/common-setup.sh")
-  jumpbox_setup_script          = file("${path.module}/scripts/jumpbox-setup.sh")
-  controller_setup_script       = file("${path.module}/scripts/controller-setup.sh")
-  ca_tls_script                 = file("${path.module}/scripts/ca_tls.sh")
-  kubeconfig_setup_script       = file("${path.module}/scripts/kubeconfig-setup.sh")
-  encryption_setup_script       = file("${path.module}/scripts/encryption-setup.sh")
-  etcd_setup_script             = file("${path.module}/scripts/etcd-setup.sh")
-  bootstrap_controllers_script  = file("${path.module}/scripts/bootstrap-controllers.sh")
+  common_setup_script          = file("${path.module}/scripts/common-setup.sh")
+  jumpbox_setup_script         = file("${path.module}/scripts/jumpbox-setup.sh")
+  controller_setup_script      = file("${path.module}/scripts/controller-setup.sh")
+  ca_tls_script                = file("${path.module}/scripts/ca_tls.sh")
+  kubeconfig_setup_script      = file("${path.module}/scripts/kubeconfig-setup.sh")
+  encryption_setup_script      = file("${path.module}/scripts/encryption-setup.sh")
+  etcd_setup_script            = file("${path.module}/scripts/etcd-setup.sh")
+  bootstrap_controllers_script = file("${path.module}/scripts/bootstrap-controllers.sh")
+  bootstrap_workers_script     = file("${path.module}/scripts/bootstrap-workers.sh")
+  worker_setup_script          = file("${path.module}/scripts/worker-setup.sh")
 
   # SSH keys configuration - just user key
   ssh_keys = "${var.ssh_user}:${file(pathexpand(var.public_key_path))}\nroot:${file(pathexpand(var.public_key_path))}"
@@ -92,9 +94,9 @@ resource "google_compute_instance" "controller" {
   }
 
   metadata = {
-    ssh-keys                      = local.ssh_keys
-    etcd-setup-script             = local.etcd_setup_script
-    bootstrap-controllers-script  = local.bootstrap_controllers_script
+    ssh-keys                     = local.ssh_keys
+    etcd-setup-script            = local.etcd_setup_script
+    bootstrap-controllers-script = local.bootstrap_controllers_script
   }
 
   metadata_startup_script = "${local.common_setup_script}\n${local.controller_setup_script}"
@@ -124,7 +126,8 @@ resource "google_compute_instance" "worker" {
   }
 
   metadata = {
-    ssh-keys = local.ssh_keys
+    ssh-keys                  = local.ssh_keys
+    bootstrap-workers-script  = local.bootstrap_workers_script
   }
 
   metadata_startup_script = "${local.common_setup_script}\n${templatefile("${path.module}/scripts/worker-setup.sh", { worker_index = count.index })}"

@@ -30,8 +30,13 @@ resource "google_compute_route" "pod_route_node_0" {
   name        = "pod-route-node-0"
   dest_range  = "10.200.0.0/24"
   network     = google_compute_network.kubernetes.name
-  next_hop_ip = "10.240.0.20"  # node-0 internal IP
+  next_hop_ip = "10.240.0.20" # node-0 internal IP
   priority    = 1000
+
+  depends_on = [
+    google_compute_subnetwork.kubernetes,
+    google_compute_instance.worker
+  ]
 }
 
 # Route traffic for node-1's pod subnet (10.200.1.0/24) to node-1
@@ -39,6 +44,11 @@ resource "google_compute_route" "pod_route_node_1" {
   name        = "pod-route-node-1"
   dest_range  = "10.200.1.0/24"
   network     = google_compute_network.kubernetes.name
-  next_hop_ip = "10.240.0.21"  # node-1 internal IP
+  next_hop_ip = "10.240.0.21" # node-1 internal IP
   priority    = 1000
+
+  depends_on = [
+    google_compute_subnetwork.kubernetes,
+    google_compute_instance.worker
+  ]
 }

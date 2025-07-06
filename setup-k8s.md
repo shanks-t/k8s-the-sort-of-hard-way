@@ -63,7 +63,7 @@ After running `/root/ca_tls.sh`, perform the following checks **inside the jumpb
 
 ```bash
 # Inspect the CA certificate details
-openssl x509 -in /root/kubernetes-the-hard-way/ca.crt -noout -text | grep "CA: TRUE"
+openssl x509 -in /root/kubernetes-the-hard-way/ca.crt -noout -text | grep -A 1 "Basic Constraints"
 ```
 
 * Should output: `X509v3 Basic Constraints: critical\n   CA:TRUE`
@@ -247,14 +247,8 @@ After the control plane is running, bootstrap the worker nodes:
 # Copy node-specific configuration files to node-0 (subnet 10.200.0.0/24)
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && sed "s|SUBNET|10.200.0.0/24|g" configs/10-bridge.conf > 10-bridge.conf && sed "s|SUBNET|10.200.0.0/24|g" configs/kubelet-config.yaml > kubelet-config.yaml && scp 10-bridge.conf kubelet-config.yaml node-0.crt node-0.key node-0.kubeconfig kube-proxy.kubeconfig ca.crt root@node-0:~/'
 
-# Rename certificates to match hostname on node-0
-JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-0 "mv node-0.crt worker-0.crt && mv node-0.key worker-0.key && mv node-0.kubeconfig worker-0.kubeconfig"'
-
 # Copy node-specific configuration files to node-1 (subnet 10.200.1.0/24)
 JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'cd /root/kubernetes-the-hard-way && sed "s|SUBNET|10.200.1.0/24|g" configs/10-bridge.conf > 10-bridge.conf && sed "s|SUBNET|10.200.1.0/24|g" configs/kubelet-config.yaml > kubelet-config.yaml && scp 10-bridge.conf kubelet-config.yaml node-1.crt node-1.key node-1.kubeconfig kube-proxy.kubeconfig ca.crt root@node-1:~/'
-
-# Rename certificates to match hostname on node-1
-JUMPBOX_IP=$(terraform output -raw jumpbox_ip) && ssh -A root@$JUMPBOX_IP 'ssh root@node-1 "mv node-1.crt worker-1.crt && mv node-1.key worker-1.key && mv node-1.kubeconfig worker-1.kubeconfig"'
 ```
 
 ### Copy Worker Binaries and Unit Files

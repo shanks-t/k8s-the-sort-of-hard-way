@@ -1,4 +1,4 @@
-# Terraform Apply and CA-TLS Automation with Cloud Code Agent
+# K8s Bootstrap Automation Plan for Cloud Code Agent
 
 This guide provides step-by-step instructions for the Cloud Code Agent to:
 

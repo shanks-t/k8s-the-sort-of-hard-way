@@ -125,7 +125,7 @@ The bootstrap process includes:
 
 ## Learning Outcomes
 
-After completing this project, you will understand:
+If you review each of the steps in the original tutorial along with working through this repo, you will understand:
 
 **Kubernetes Internals:**
 - How certificates and PKI work in Kubernetes

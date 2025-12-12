@@ -1,5 +1,10 @@
 # Kubernetes The Hard Way - Infrastructure Automation
 
+## Youtube demo videos:
+- [intro](https://www.youtube.com/watch?v=3oF4InLCvAY)
+- [video 2](https://www.youtube.com/watch?v=p5a8juaYWU8)
+- [full demo](https://www.youtube.com/watch?v=dO5JBXoLIQ0)
+
 ## Project Purpose
 
 This project serves two primary educational purposes:
